@@ -1,0 +1,22 @@
+{
+  "name": "restaurant-sans-site-web",
+  "version": "1.0.0",
+  "description": "Outil de recherche de restaurants sans site web",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["restaurant", "google-places", "search"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0"
+  }
+}
