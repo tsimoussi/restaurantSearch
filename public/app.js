@@ -85,6 +85,29 @@ function createRestaurantCard(restaurant) {
         ? '<span class="text-red-600 font-semibold"><i class="fas fa-times-circle"></i> Fermé</span>'
         : '<span class="text-gray-500">Horaires inconnus</span>';
 
+    const callBtn = restaurant.telUrl && restaurant.phone && restaurant.phone !== 'Non disponible'
+        ? `<a href="${restaurant.telUrl}" class="flex-1 text-center bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition duration-200">
+                <i class="fas fa-phone"></i> Appeler
+           </a>`
+        : '';
+
+    const whatsappBtn = restaurant.whatsappUrl
+        ? `<a href="${restaurant.whatsappUrl}" target="_blank" rel="noopener noreferrer" class="flex-1 text-center bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-2 rounded-lg transition duration-200">
+                <i class="fab fa-whatsapp"></i> WhatsApp
+           </a>`
+        : '';
+
+    const mapsHref = restaurant.googleMapsUrl
+        ? restaurant.googleMapsUrl
+        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.name + ' ' + restaurant.address)}&query_place_id=${restaurant.placeId}`;
+
+    const actionsRow = (callBtn || whatsappBtn)
+        ? `<div class="mt-4 flex gap-2">
+                ${callBtn}
+                ${whatsappBtn}
+           </div>`
+        : '';
+
     card.innerHTML = `
         <div class="relative">
             <img src="${photoUrl}" alt="${restaurant.name}" class="w-full h-48 object-cover">
@@ -115,13 +138,16 @@ function createRestaurantCard(restaurant) {
                 </div>
             </div>
 
-            <div class="mt-4 pt-4 border-t border-gray-200">
+            ${actionsRow}
+
+            <div class="mt-3 pt-4 border-t border-gray-200">
                 <a 
-                    href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.name + ' ' + restaurant.address)}&query_place_id=${restaurant.placeId}"
+                    href="${mapsHref}"
                     target="_blank"
+                    rel="noopener noreferrer"
                     class="block w-full text-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition duration-200"
                 >
-                    <i class="fas fa-map"></i> Voir sur Google Maps
+                    <i class="fas fa-map"></i> Google Maps
                 </a>
             </div>
         </div>
