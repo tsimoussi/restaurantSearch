@@ -13,13 +13,38 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(join(__dirname, 'public')));
 
 let GOOGLE_API_KEY;
 if (process.env.GOOGLE_API_KEY) {
   GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 } else {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Missing GOOGLE_API_KEY environment variable in production');
+  }
   GOOGLE_API_KEY = fs.readFileSync(join(__dirname, 'googleApiKey.txt'), 'utf-8').trim();
+}
+
+function normalizePhoneForWhatsApp(phone) {
+  if (!phone || typeof phone !== 'string') return null;
+
+  const trimmed = phone.trim();
+  if (!trimmed) return null;
+
+  // Keep leading + if present, remove spaces and punctuation
+  const hasPlus = trimmed.startsWith('+');
+  const digitsOnly = trimmed.replace(/[^0-9]/g, '');
+  if (!digitsOnly) return null;
+
+  if (hasPlus) return digitsOnly;
+
+  // Best-effort for France: convert 0XXXXXXXXX -> 33XXXXXXXXX
+  if (digitsOnly.length === 10 && digitsOnly.startsWith('0')) {
+    return `33${digitsOnly.slice(1)}`;
+  }
+
+  // Fallback: already digits, but may not be internationally formatted
+  return digitsOnly;
 }
 
 app.post('/api/search-restaurants', async (req, res) => {
@@ -66,7 +91,7 @@ app.post('/api/search-restaurants', async (req, res) => {
     let withoutWebsite = 0;
 
     for (const restaurant of restaurants) {
-      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${restaurant.place_id}&fields=name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,opening_hours,photos,geometry&key=${GOOGLE_API_KEY}`;
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${restaurant.place_id}&fields=name,formatted_address,formatted_phone_number,international_phone_number,website,rating,user_ratings_total,opening_hours,photos,geometry&key=${GOOGLE_API_KEY}`;
       const detailsResponse = await axios.get(detailsUrl);
 
       if (detailsResponse.data.status === 'OK') {
@@ -75,10 +100,22 @@ app.post('/api/search-restaurants', async (req, res) => {
         if (!details.website) {
           withoutWebsite++;
           console.log(`✅ ${details.name} - NO WEBSITE`);
+
+          const phone = details.international_phone_number || details.formatted_phone_number || null;
+          const telUrl = phone ? `tel:${phone.replace(/\s+/g, '')}` : null;
+          const waPhone = normalizePhoneForWhatsApp(phone);
+          const whatsappUrl = waPhone ? `https://wa.me/${waPhone}` : null;
+          const googleMapsUrl = restaurant.place_id
+            ? `https://www.google.com/maps/place/?q=place_id:${restaurant.place_id}`
+            : null;
+
           detailedRestaurants.push({
             name: details.name,
             address: details.formatted_address,
-            phone: details.formatted_phone_number || 'Non disponible',
+            phone: phone || 'Non disponible',
+            telUrl,
+            whatsappUrl,
+            googleMapsUrl,
             rating: details.rating || 'N/A',
             totalRatings: details.user_ratings_total || 0,
             openNow: details.opening_hours?.open_now,
@@ -105,6 +142,10 @@ app.post('/api/search-restaurants', async (req, res) => {
     console.error('Error:', error.message);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/api/photo/:photoReference', (req, res) => {
@@ -148,5 +189,5 @@ app.get('/api/test-restaurant/:name/:location', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server listening on port ${PORT} (NODE_ENV=${process.env.NODE_ENV || 'development'})`);
 });
